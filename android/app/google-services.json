@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "401372968996",
+    "project_id": "smartbus-tkmce",
+    "storage_bucket": "smartbus-tkmce.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:401372968996:android:4681e8f3e1c4b75b2a80b1",
+        "android_client_info": {
+          "package_name": "com.example.smartbus"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "401372968996-l38p3r11tk002ucnpb162q58p72lv7tn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.smartbus",
+            "certificate_hash": "975af287fec93a6366dd50cb6ca27b5a03a09e92"
+          }
+        },
+        {
+          "client_id": "401372968996-4uado8allfoki670i4lpms7kssg37649.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkm82FMYUHVW7RuFTSue1fiO269NBJ6A8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "401372968996-4uado8allfoki670i4lpms7kssg37649.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
