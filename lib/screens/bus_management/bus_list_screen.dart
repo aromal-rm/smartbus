@@ -67,7 +67,7 @@ class _BusListScreenState extends State<BusListScreen> {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => EditBusScreen(
-                              busId: bus['id'],
+                              busId: bus['id'] ?? '', // Provide a default empty string if null
                               busNumber: bus['busNumber'] ?? '',
                               route: bus['route'] ?? '',
                               capacity: bus['capacity'] ?? 0,
@@ -79,7 +79,7 @@ class _BusListScreenState extends State<BusListScreen> {
                         });
                       },
                       onDelete: () {
-                        _showDeleteConfirmationDialog(bus['id']);
+                        _showDeleteConfirmationDialog(bus['id'] ?? '');
                       },
                     );
                   },

@@ -32,6 +32,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
   String? _assignedBusId;
   Map<String, dynamic>? _assignedBus;
   List<Map<String, dynamic>> _bookings = [];
+  List<Map<String, dynamic>> _assignedBuses = []; // Added list for all assigned buses
   bool _isLoading = true;
   bool _isUpdatingLocation = false;
   //Location
@@ -39,7 +40,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
   Position? _currentPosition;
   late Timer _locationUpdateTimer;
   final MapController _mapController = MapController();
-  // final LatLng _initialCameraPosition = LatLng(8.5241, 76.9366); // Default: Thiruvananthapuram
   LatLng _currentCameraPosition = LatLng(8.5241, 76.9366);
   List<LatLng> _polylineCoordinates = [];
   bool _isCrowdLevelHigh = false; // Track crowd level
@@ -49,9 +49,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
   void initState() {
     super.initState();
     _loadDriverData();
-    // Initialize timer with a default empty callback
     _locationUpdateTimer = Timer.periodic(const Duration(seconds: 30), (_) {});
-    // Cancel immediately to avoid unnecessary updates until location permission is granted
     _locationUpdateTimer.cancel();
   }
 
@@ -69,34 +67,53 @@ class _DriverDashboardState extends State<DriverDashboard> {
       if (userDetails != null) {
         setState(() {
           _userName = userDetails.name;
-          _assignedBusId = userDetails.assignedBusId;
         });
-      }
-    }
 
-    if (_assignedBusId != null) {
-      _assignedBus = await _firestoreService.getBusById(_assignedBusId!);
-      if (_assignedBus != null) {
-        _bookings = await _firestoreService.getBookingsForBus(_assignedBusId!);
+        final buses = await _firestoreService.getBusesForDriver(_user!.uid);
+        setState(() {
+          _assignedBuses = buses;
+
+          if (buses.isNotEmpty) {
+            if (_assignedBusId != null && buses.any((bus) => bus['id'] == _assignedBusId)) {
+              _assignedBus = buses.firstWhere((bus) => bus['id'] == _assignedBusId);
+            } else {
+              _assignedBusId = buses.first['id'];
+              _assignedBus = buses.first;
+            }
+
+            _loadBookingsForBus(_assignedBusId!);
+          }
+        });
       }
     }
     setState(() => _isLoading = false);
   }
 
-  // Get current location
+  Future<void> _loadBookingsForBus(String busId) async {
+    _bookings = await _firestoreService.getBookingsForBus(busId);
+    setState(() {});
+  }
+
+  void _selectBus(Map<String, dynamic> bus) {
+    setState(() {
+      _assignedBusId = bus['id'];
+      _assignedBus = bus;
+      _bookings = [];
+    });
+    _loadBookingsForBus(bus['id']);
+  }
+
   Future<void> _getCurrentLocation() async {
     _permission = await Geolocator.checkPermission();
     if (_permission == LocationPermission.denied) {
       _permission = await Geolocator.requestPermission();
       if (_permission == LocationPermission.denied) {
-        // Location permissions are denied, handle error
         _showErrorDialog('Location permissions are denied.');
         return;
       }
     }
 
     if (_permission == LocationPermission.deniedForever) {
-      // Location permissions are permanently denied, handle error
       _showErrorDialog(
           'Location permissions are permanently denied, please enable them in settings.');
       return;
@@ -110,8 +127,8 @@ class _DriverDashboardState extends State<DriverDashboard> {
             LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
       });
       _mapController.move(
-          _currentCameraPosition, 15.0); // Move the map to the current location
-      
+          _currentCameraPosition, 15.0);
+
       if (_assignedBusId != null) {
         await _firestoreService.updateBusLocation(
           busId: _assignedBusId!,
@@ -125,23 +142,20 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-  // Function to start updating location periodically
   void _startLocationUpdates() {
     setState(() {
       _isUpdatingLocation = true;
     });
-    _getCurrentLocation(); // Get the initial location
+    _getCurrentLocation();
 
     _locationUpdateTimer =
         Timer.periodic(const Duration(seconds: 10), (Timer timer) async {
-          //update every 10 seconds
           if (_isUpdatingLocation) {
             await _getCurrentLocation();
           }
         });
   }
 
-  // Function to stop location updates
   void _stopLocationUpdates() {
     setState(() {
       _isUpdatingLocation = false;
@@ -159,7 +173,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     );
   }
 
-  // Function to get directions using Google Maps
   void _getDirections() async {
     if (_currentPosition != null && _assignedBus != null) {
       final double? destLatitude = _assignedBus!['currentLocation']?.latitude;
@@ -184,7 +197,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-  //show bus on map
   Widget _showBusLocationOnMap() {
     if (_assignedBus != null) {
       final double? busLatitude = _assignedBus!['currentLocation']?.latitude;
@@ -242,7 +254,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-  // Get route between source and destination
   Future<void> _getPolyline({required LatLng source, required LatLng destination}) async {
     _polylineCoordinates.clear();
 
@@ -261,8 +272,6 @@ class _DriverDashboardState extends State<DriverDashboard> {
           destination: PointLatLng(destination.latitude, destination.longitude),
           mode: TravelMode.driving,
         ),
-        // PointLatLng(source.latitude, source.longitude),
-        // PointLatLng(destination.latitude, destination.longitude),
       );
 
       if (result.points.isNotEmpty) {
@@ -280,13 +289,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
     }
   }
 
-  // Function to toggle crowd level
   void _toggleCrowdLevel() {
     setState(() {
       _isCrowdLevelHigh = !_isCrowdLevelHigh;
-      _crowdLevel = _isCrowdLevelHigh ? 'High' : 'Low'; //update
+      _crowdLevel = _isCrowdLevelHigh ? 'High' : 'Low';
     });
-    // Update crowd level in Firestore
     if (_assignedBusId != null) {
       _firestoreService.updateCrowdLevel(
           busId: _assignedBusId!, crowdLevel: _crowdLevel);
@@ -302,7 +309,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              _stopLocationUpdates(); // Stop location updates before signing out
+              _stopLocationUpdates();
               await _authService.signOut();
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
@@ -327,18 +334,90 @@ class _DriverDashboardState extends State<DriverDashboard> {
                     fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
+
+              Text(
+                'Your Assigned Buses:',
+                style: const TextStyle(
+                  fontSize: 20, 
+                  fontWeight: FontWeight.bold
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              if (_assignedBuses.isEmpty)
+                const Text('No buses assigned to you.'),
+
+              if (_assignedBuses.isNotEmpty)
+                Container(
+                  height: 120,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _assignedBuses.length,
+                    itemBuilder: (context, index) {
+                      final bus = _assignedBuses[index];
+                      final isSelected = bus['id'] == _assignedBusId;
+
+                      return GestureDetector(
+                        onTap: () => _selectBus(bus),
+                        child: Container(
+                          width: 180,
+                          margin: const EdgeInsets.only(right: 10),
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.blue.shade100 : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(10),
+                            border: isSelected 
+                              ? Border.all(color: Colors.blue, width: 2)
+                              : null,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Bus: ${bus['busNumber'] ?? 'N/A'}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                'Route: ${bus['route'] ?? 'N/A'}',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                'Status: ${bus['status'] ?? 'Active'}',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
               if (_assignedBus != null) ...[
                 Text(
-                  'Assigned Bus: ${_assignedBus!['busNumber'] ?? 'N/A'}',
-                  style: const TextStyle(fontSize: 18),
+                  'Selected Bus Details:',
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
+                Text(
+                  'Bus Number: ${_assignedBus!['busNumber'] ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 5),
                 Text(
                   'Route: ${_assignedBus!['route'] ?? 'N/A'}',
                   style: const TextStyle(fontSize: 18),
                 ),
                 const SizedBox(height: 20),
-                _showBusLocationOnMap(), //show
+                _showBusLocationOnMap(),
                 const SizedBox(height: 20),
                 Text(
                   'Passenger List for Bus:',
@@ -354,7 +433,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
                       final booking = _bookings[index];
                       return ListTile(
                         title: Text(
-                            'User ID: ${booking['userId'] ?? 'N/A'}'), //show user
+                            'User ID: ${booking['userId'] ?? 'N/A'}'),
                         subtitle: Text(
                             'Seats: ${booking['seats'] ?? 'N/A'}, Time: ${booking['time']}'),
                       );
@@ -386,13 +465,11 @@ class _DriverDashboardState extends State<DriverDashboard> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isCrowdLevelHigh
                         ? Colors.red
-                        : Colors.green, // Change color
+                        : Colors.green,
                   ),
-                  child: Text(
-                      'Crowd Level: $_crowdLevel'), //show crowd level
+                  child: Text('Crowd Level: $_crowdLevel'),
                 ),
-              ] else
-                const Text('No bus assigned to you.'),
+              ],
             ],
           ),
         ),

@@ -7,6 +7,7 @@ class EditBusScreen extends StatefulWidget {
   final String busNumber;
   final String route;
   final int capacity;
+  final String? driverId; // Add driverId parameter
 
   const EditBusScreen({
     super.key,
@@ -14,6 +15,7 @@ class EditBusScreen extends StatefulWidget {
     required this.busNumber,
     required this.route,
     required this.capacity,
+    this.driverId, // Initialize with current driver ID if any
   });
 
   @override
@@ -28,12 +30,34 @@ class _EditBusScreenState extends State<EditBusScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isLoading = false;
 
+  // Add driver related variables
+  List<Map<String, dynamic>> _drivers = [];
+  String? _selectedDriverId;
+  bool _loadingDrivers = true;
+
   @override
   void initState() {
     super.initState();
     _busNumberController.text = widget.busNumber;
     _routeController.text = widget.route;
     _capacityController.text = widget.capacity.toString();
+    _selectedDriverId = widget.driverId;
+    _loadDrivers(); // Load drivers when screen initializes
+  }
+
+  // Load drivers from Firestore
+  Future<void> _loadDrivers() async {
+    setState(() => _loadingDrivers = true);
+    try {
+      final driversData = await _firestoreService.getDrivers();
+      setState(() {
+        _drivers = driversData;
+        _loadingDrivers = false;
+      });
+    } catch (error) {
+      setState(() => _loadingDrivers = false);
+      _showErrorDialog('Failed to load drivers: ${error.toString()}');
+    }
   }
 
   @override
@@ -53,6 +77,7 @@ class _EditBusScreenState extends State<EditBusScreen> {
           busNumber: _busNumberController.text.trim(),
           route: _routeController.text.trim(),
           capacity: int.parse(_capacityController.text.trim()),
+          driverId: _selectedDriverId, // Add driver ID to the bus data
         );
         // Show success message
         _showSuccessDialog();
@@ -145,13 +170,51 @@ class _EditBusScreenState extends State<EditBusScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 20),
+              // Driver selection dropdown
+              _loadingDrivers
+                  ? const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4.0),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          hint: const Text('Assign Driver'),
+                          value: _selectedDriverId,
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('No Driver (Unassigned)'),
+                            ),
+                            ..._drivers.map((driver) {
+                              return DropdownMenuItem<String>(
+                                value: driver['id'],
+                                child: Text('${driver['name']} (${driver['email']})'),
+                              );
+                            }).toList(),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedDriverId = value;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
               const SizedBox(height: 30),
               _isLoading
                   ? const CustomProgressIndicator(message: 'Editing Bus...')
                   : CustomButton(
-                onPressed: _editBus,
-                text: 'Save Changes',
-              ),
+                      onPressed: _editBus,
+                      text: 'Save Changes',
+                    ),
             ],
           ),
         ),
