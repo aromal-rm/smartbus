@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smartbus/services/auth_service.dart';
 import '../models/user_model.dart'; // Import the user model
-import 'package:geolocator/geolocator.dart'; // Import for location
-import 'package:shared_preferences/shared_preferences.dart';
+// Import for location
 import 'dart:async'; // Import for Timer
 
 class FirestoreService {
@@ -17,17 +16,48 @@ class FirestoreService {
     required String busNumber,
     required String route,
     required int capacity,
+    required String startingPoint,
+    required String endPoint,
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+    required String departureTime,
+    required String arrivalTime,
+    required String timeSlot,
+    String? driverId,
   }) async {
     try {
-      await _firestore.collection(_busesCollection).doc().set({
+      // Validate required fields
+      if (busNumber.isEmpty || route.isEmpty || startingPoint.isEmpty || endPoint.isEmpty) {
+        throw 'All fields are required';
+      }
+
+      final busDoc = await _firestore.collection(_busesCollection).add({
         'busNumber': busNumber,
         'route': route,
         'capacity': capacity,
-        'currentLocation': const GeoPoint(0, 0), // Initial location
-        'driverId': null, // Initially no driver assigned
+        'startingPoint': startingPoint,
+        'endPoint': endPoint,
+        'startLat': startLat,
+        'startLng': startLng,
+        'endLat': endLat,
+        'endLng': endLng,
+        'departureTime': departureTime,
+        'arrivalTime': arrivalTime,
+        'timeSlot': timeSlot,
+        'driverId': driverId,
+        'currentLocation': null,
         'crowdLevel': 'Low',
-        'updatedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // If driver is assigned, update driver's assigned bus
+      if (driverId != null) {
+        await _firestore.collection(_usersCollection).doc(driverId).update({
+          'assignedBusId': busDoc.id,
+        });
+      }
     } catch (e) {
       print('Error adding bus: $e');
       throw 'Failed to add bus: $e';
@@ -40,27 +70,34 @@ class FirestoreService {
     required String busNumber,
     required String route,
     required int capacity,
-    String? driverId, // Add driverId parameter
+    required String startingPoint,
+    required String endPoint,
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+    required String departureTime,
+    required String arrivalTime,
+    required String timeSlot,
+    String? driverId,
   }) async {
     try {
-      // Create bus data map
-      final Map<String, dynamic> busData = {
+      await _firestore.collection(_busesCollection).doc(busId).update({
         'busNumber': busNumber,
         'route': route,
         'capacity': capacity,
+        'startingPoint': startingPoint,
+        'endPoint': endPoint,
+        'startLat': startLat,
+        'startLng': startLng,
+        'endLat': endLat,
+        'endLng': endLng,
+        'departureTime': departureTime,
+        'arrivalTime': arrivalTime,
+        'timeSlot': timeSlot,
+        'driverId': driverId,
         'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      // Only add driverId if it's not null
-      if (driverId != null) {
-        busData['driverId'] = driverId;
-      } else {
-        // Remove driver assignment if null
-        busData['driverId'] = FieldValue.delete();
-      }
-
-      // Update the bus document
-      await _firestore.collection('buses').doc(busId).update(busData);
+      });
     } catch (e) {
       throw 'Failed to edit bus: $e';
     }
@@ -256,19 +293,30 @@ class FirestoreService {
   // Increase bus capacity after cancellation
   Future<void> _increaseBusCapacity(String busId, int cancelledSeats) async {
     try {
-      final DocumentSnapshot busSnapshot =
-      await _firestore.collection(_busesCollection).doc(busId).get();
-      if (busSnapshot.exists) {
-        final data = busSnapshot.data() as Map<String, dynamic>;
-        final int currentCapacity = data['capacity'] as int;
-        final int newCapacity = currentCapacity + cancelledSeats;
-        await _firestore.collection(_busesCollection).doc(busId).update({
-          'capacity': newCapacity,
-        });
+      final DocumentSnapshot busSnapshot = 
+          await _firestore.collection(_busesCollection).doc(busId).get();
+      
+      if (!busSnapshot.exists) {
+        throw 'Bus not found';
       }
+
+      final data = busSnapshot.data() as Map<String, dynamic>;
+      final int currentCapacity = data['capacity'] as int;
+      
+      // Add validation to prevent overflow
+      final int maxCapacity = data['maxCapacity'] as int? ?? 100; // Default max capacity
+      final int newCapacity = currentCapacity + cancelledSeats;
+      
+      if (newCapacity > maxCapacity) {
+        throw 'Cannot exceed maximum bus capacity';
+      }
+
+      await _firestore.collection(_busesCollection).doc(busId).update({
+        'capacity': newCapacity,
+      });
     } catch (e) {
       print('Error increasing bus capacity: $e');
-      throw 'Failed to increase bus capacity: $e';
+      throw 'Failed to update bus capacity: $e';
     }
   }
 
@@ -280,7 +328,7 @@ class FirestoreService {
   }) async {
     try {
       await _firestore.collection(_busesCollection).doc(busId).update({
-        'currentLocation': GeoPoint(latitude, longitude),
+        'currentLocation': {'latitude': latitude, 'longitude': longitude},
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {

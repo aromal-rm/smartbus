@@ -35,20 +35,27 @@ dependencies:
   firebase_storage: ^12.4.5
   flutter:
     sdk: flutter
+  
+  # OSM Map packages
   flutter_map: ^6.1.0
-  flutter_polyline_points: ^2.1.0
-  fluttertoast: ^8.2.1
-  geolocator: ^11.0.0
-  google_maps_flutter: ^2.5.0
-  intl: ^0.20.2
+  flutter_map_location_marker: ^8.0.2
   latlong2: ^0.9.1
+  osm_nominatim: ^3.0.0
+  
+  # Location handling packages
+  geolocator: ^11.0.0
   location: ^8.0.0
   permission_handler: ^12.0.0+1
+  
+  # Path-related packages for OSM route display
+  flutter_polyline_points: ^2.1.0
+  
+  fluttertoast: ^8.2.1
+  intl: ^0.20.2
   provider: ^6.1.0
   shared_preferences: ^2.5.3
   url_launcher: ^6.2.4
   flutter_plugin_android_lifecycle: ^2.0.27
-  # shared_preferences: ^2.5.3
 
 dev_dependencies:
 

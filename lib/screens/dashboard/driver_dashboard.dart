@@ -305,6 +305,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Driver Dashboard'),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -321,160 +322,49 @@ class _DriverDashboardState extends State<DriverDashboard> {
         ],
       ),
       body: _isLoading
-          ? const CustomProgressIndicator(message: 'Loading Dashboard...')
+          ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                'Welcome, $_userName!',
-                style: const TextStyle(
-                    fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-
-              Text(
-                'Your Assigned Buses:',
-                style: const TextStyle(
-                  fontSize: 20, 
-                  fontWeight: FontWeight.bold
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              if (_assignedBuses.isEmpty)
-                const Text('No buses assigned to you.'),
-
-              if (_assignedBuses.isNotEmpty)
-                Container(
-                  height: 120,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _assignedBuses.length,
-                    itemBuilder: (context, index) {
-                      final bus = _assignedBuses[index];
-                      final isSelected = bus['id'] == _assignedBusId;
-
-                      return GestureDetector(
-                        onTap: () => _selectBus(bus),
-                        child: Container(
-                          width: 180,
-                          margin: const EdgeInsets.only(right: 10),
-                          padding: const EdgeInsets.all(15),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue.shade100 : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(10),
-                            border: isSelected 
-                              ? Border.all(color: Colors.blue, width: 2)
-                              : null,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Bus: ${bus['busNumber'] ?? 'N/A'}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                'Route: ${bus['route'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                'Status: ${bus['status'] ?? 'Active'}',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, $_userName!',
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                ),
-
-              const SizedBox(height: 20),
-
-              if (_assignedBus != null) ...[
-                Text(
-                  'Selected Bus Details:',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Bus Number: ${_assignedBus!['busNumber'] ?? 'N/A'}',
-                  style: const TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Route: ${_assignedBus!['route'] ?? 'N/A'}',
-                  style: const TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 20),
-                _showBusLocationOnMap(),
-                const SizedBox(height: 20),
-                Text(
-                  'Passenger List for Bus:',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                if (_bookings.isNotEmpty)
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: _bookings.length,
-                    itemBuilder: (context, index) {
-                      final booking = _bookings[index];
-                      return ListTile(
-                        title: Text(
-                            'User ID: ${booking['userId'] ?? 'N/A'}'),
-                        subtitle: Text(
-                            'Seats: ${booking['seats'] ?? 'N/A'}, Time: ${booking['time']}'),
-                      );
-                    },
-                  )
-                else
-                  const Text('No bookings for this bus.'),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: _isUpdatingLocation
-                          ? _stopLocationUpdates
-                          : _startLocationUpdates,
-                      child: Text(_isUpdatingLocation
-                          ? 'Stop Location Updates'
-                          : 'Start Location Updates'),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: _getDirections,
-                      child: const Text('Get Directions'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _toggleCrowdLevel,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isCrowdLevelHigh
-                        ? Colors.red
-                        : Colors.green,
+                  const SizedBox(height: 16),
+                  Text(
+                    'Your Assigned Buses:',
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                  child: Text('Crowd Level: $_crowdLevel'),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+                  const SizedBox(height: 10),
+                  if (_assignedBuses.isEmpty)
+                    const Text('No buses assigned to you.'),
+                  if (_assignedBuses.isNotEmpty)
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _assignedBuses.length,
+                        itemBuilder: (context, index) {
+                          final bus = _assignedBuses[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            child: ListTile(
+                              title: Text('Bus: ${bus['busNumber']}'),
+                              subtitle: Text('Route: ${bus['route']}'),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.map),
+                                onPressed: () => _selectBus(bus),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
 
+  
